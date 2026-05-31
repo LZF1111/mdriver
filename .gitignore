@@ -1,0 +1,11 @@
+# 仅发布封装版二进制包 + README，不收录源码与中间产物
+node_modules/
+dist/
+*.log
+.env
+.DS_Store
+Thumbs.db
+
+# 解压后的目录（仓库只保留压缩包）
+mdriver-win-x64-sealed/
+mdriver-linux-sealed/
