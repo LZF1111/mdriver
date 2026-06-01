@@ -104,6 +104,9 @@
     font-size:22px;background:rgba(168,85,247,.1);border:1px solid var(--line2);margin-bottom:16px}
   .card h3{font-size:17px;font-weight:700;margin:0 0 8px}
   .card p{font-size:14px;color:var(--muted);margin:0;line-height:1.6}
+  .card.hl{background:linear-gradient(180deg,rgba(168,85,247,.07),var(--bg2));border-color:var(--line2)}
+  .card.hl h3{padding-left:14px;position:relative}
+  .card.hl h3::before{content:"";position:absolute;left:0;top:3px;bottom:3px;width:3px;border-radius:3px;background:var(--grad)}
 
   /* pipeline */
   .pipe{display:grid;grid-template-columns:repeat(7,1fr);gap:0;position:relative}
@@ -178,12 +181,13 @@
     <div class="logo"><b>M</b>Driver</div>
     <div class="nav-links">
       <a href="#features">能力</a>
+      <a href="#evolve">自进化</a>
       <a href="#pipeline">流水线</a>
       <a href="#compare">对比</a>
       <a href="#install">快速开始</a>
       <a href="#faq">FAQ</a>
     </div>
-    <a class="nav-cta" href="https://github.com/LZF1111/mdriver" target="_blank" rel="noopener">GitHub ↗</a>
+    <a class="nav-cta" href="https://github.com/LZF1111/mdriver" target="_blank" rel="noopener">GitHub</a>
   </div>
 </nav>
 
@@ -194,8 +198,8 @@
       <h1 class="hero-title">不只是 coding agent，<br/>更是你的<span class="grad-text">分子动力学仿真工程师</span></h1>
       <p class="hero-sub">MDriver 把大语言模型变成会跑 LAMMPS 的工程师：自动建模、写输入脚本、提交计算、实时监控，再到 NGL 轨迹可视化与产物分析——一条龙，全在本地。</p>
       <div class="hero-btns">
-        <a class="btn btn-primary" href="#install">⚡ 立即开始</a>
-        <a class="btn btn-ghost" href="https://github.com/LZF1111/mdriver" target="_blank" rel="noopener">⭐ Star on GitHub</a>
+        <a class="btn btn-primary" href="#install">立即开始</a>
+        <a class="btn btn-ghost" href="https://github.com/LZF1111/mdriver" target="_blank" rel="noopener">Star on GitHub</a>
       </div>
       <div class="hero-stats">
         <div class="stat"><div class="n grad-text">LAMMPS</div><div class="l">原生全流程驱动</div></div>
@@ -209,15 +213,15 @@
           <span class="t">NGL · dump.atom · 实时后处理</span></div>
         <div id="ngl-stage" class="ngl-stage"><div class="ngl-hint">拖动旋转 · 滚轮缩放 · 右键平移</div></div>
         <div class="viewer-ctrl">
-          <button id="vc-play" type="button">▶ 已暂停</button>
-          <button id="vc-spin" type="button">↻ 自动旋转：开</button>
+          <button id="vc-play" type="button">已暂停</button>
+          <button id="vc-spin" type="button">自动旋转：开</button>
           <select id="vc-rep" title="表示模式">
             <option value="spacefill" selected>填充球</option>
             <option value="ball+stick">球棍</option>
             <option value="licorice">线条</option>
             <option value="surface">表面</option>
           </select>
-          <button id="vc-reset" type="button">⤢ 复位</button>
+          <button id="vc-reset" type="button">复位</button>
           <span class="vc-info" id="vc-info">加载中…</span>
         </div>
       </div>
@@ -246,6 +250,21 @@
   </div>
 </section>
 
+<section id="evolve" style="background:linear-gradient(180deg,transparent,rgba(124,77,255,.05),transparent)">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <div class="kicker">Self-Evolving</div>
+      <h2>越用越聪明 · 会自进化的智能体</h2>
+      <p>MDriver 不止「调参」，而是把每一次对话沉淀成项目记忆，还能为新体系现写现译求解器——用得越久，越懂你的课题。</p>
+    </div>
+    <div class="grid evolve-grid">
+      <div class="card hl reveal"><h3>项目记忆 · Project Memory</h3><p>自动记住你的体系、力场选择、踩过的坑与偏好，跨会话延续。下次同类任务直接复用经验，不必从零交代。</p></div>
+      <div class="card hl reveal"><h3>自动造求解器</h3><p>内置功能覆盖不到时，能现写并编译新的 pair_style / fix / compute 并重新构建 LAMMPS——不只是改参数，而是造工具。</p></div>
+      <div class="card hl reveal"><h3>错误图谱自学习</h3><p>每次报错与修复都进入诊断图谱，错误模式越积越全，同类问题下次一步定位、自动闭环修复。</p></div>
+    </div>
+  </div>
+</section>
+
 <section id="pipeline" style="background:linear-gradient(180deg,transparent,rgba(124,77,255,.04),transparent)">
   <div class="wrap">
     <div class="sec-head reveal">
@@ -254,13 +273,13 @@
       <p>给一句话需求，MDriver 自己拆解成可执行的七步，每一步都可观察、可干预、可回滚。</p>
     </div>
     <div class="pipe">
-      <div class="step reveal"><div class="node">📐</div><div class="m">M1</div><h4>建模</h4><p>构建 / 读入分子与盒子，生成 data 文件</p></div>
-      <div class="step reveal"><div class="node">⚛️</div><div class="m">M2</div><h4>力场</h4><p>选 ReaxFF / 经典势，配 qeq 与参数</p></div>
-      <div class="step reveal"><div class="node">📜</div><div class="m">M3</div><h4>输入脚本</h4><p>自动写 in.* ：系综、控温、dump</p></div>
-      <div class="step reveal"><div class="node">🚀</div><div class="m">M4</div><h4>运行</h4><p>调用本地 LAMMPS 提交并跟踪</p></div>
-      <div class="step reveal"><div class="node">📈</div><div class="m">M5</div><h4>监控</h4><p>解析 thermo / log，异常即时纠偏</p></div>
-      <div class="step reveal"><div class="node">🎞️</div><div class="m">M6</div><h4>后处理</h4><p>NGL 轨迹可视化 + 产物统计</p></div>
-      <div class="step reveal"><div class="node">📊</div><div class="m">M7</div><h4>报告</h4><p>汇总图表与结论，输出可复现脚本</p></div>
+      <div class="step reveal"><div class="node">1</div><div class="m">M1</div><h4>建模</h4><p>构建 / 读入分子与盒子，生成 data 文件</p></div>
+      <div class="step reveal"><div class="node">2</div><div class="m">M2</div><h4>力场</h4><p>选 ReaxFF / 经典势，配 qeq 与参数</p></div>
+      <div class="step reveal"><div class="node">3</div><div class="m">M3</div><h4>输入脚本</h4><p>自动写 in.* ：系综、控温、dump</p></div>
+      <div class="step reveal"><div class="node">4</div><div class="m">M4</div><h4>运行</h4><p>调用本地 LAMMPS 提交并跟踪</p></div>
+      <div class="step reveal"><div class="node">5</div><div class="m">M5</div><h4>监控</h4><p>解析 thermo / log，异常即时纠偏</p></div>
+      <div class="step reveal"><div class="node">6</div><div class="m">M6</div><h4>后处理</h4><p>NGL 轨迹可视化 + 产物统计</p></div>
+      <div class="step reveal"><div class="node">7</div><div class="m">M7</div><h4>报告</h4><p>汇总图表与结论，输出可复现脚本</p></div>
     </div>
   </div>
 </section>
@@ -336,7 +355,7 @@ node server.js<br/><br/>
     <div class="cta-band reveal">
       <h2>把仿真这件苦差事，交给 MDriver</h2>
       <p>少写脚本，少调环境，少来回切工具。一句话，让你的本地 LAMMPS 工程师开跑。</p>
-      <a class="btn btn-primary" href="https://github.com/LZF1111/mdriver" target="_blank" rel="noopener">⭐ 前往 GitHub</a>
+      <a class="btn btn-primary" href="https://github.com/LZF1111/mdriver" target="_blank" rel="noopener">前往 GitHub</a>
     </div>
   </div>
 </section>
@@ -405,12 +424,12 @@ node server.js<br/><br/>
 
     document.getElementById('vc-play').addEventListener('click', function(){
       if (!player) return;
-      if (player.isRunning){ player.pause(); this.textContent='▶ 已暂停'; }
-      else { player.play(); this.textContent='⏸ 播放中'; }
+      if (player.isRunning){ player.pause(); this.textContent='已暂停'; }
+      else { player.play(); this.textContent='播放中'; }
     });
     document.getElementById('vc-spin').addEventListener('click', function(){
       spinning = !spinning;
-      this.textContent = spinning ? '↻ 自动旋转：开' : '↻ 自动旋转：关';
+      this.textContent = spinning ? '自动旋转：开' : '自动旋转：关';
       if (spinning){ spinReq = requestAnimationFrame(spinLoop); }
       else if (spinReq){ cancelAnimationFrame(spinReq); spinReq=null; }
     });
