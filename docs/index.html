@@ -209,8 +209,8 @@
           <span class="t">NGL · dump.atom · 实时后处理</span></div>
         <div id="ngl-stage" class="ngl-stage"><div class="ngl-hint">拖动旋转 · 滚轮缩放 · 右键平移</div></div>
         <div class="viewer-ctrl">
-          <button id="vc-play" type="button">⏸ 暂停</button>
-          <button id="vc-spin" type="button">↻ 自动旋转</button>
+          <button id="vc-play" type="button">⏸ 播放中</button>
+          <button id="vc-spin" type="button">↻ 自动旋转：关</button>
           <select id="vc-rep" title="表示模式">
             <option value="spacefill" selected>填充球</option>
             <option value="ball+stick">球棍</option>
@@ -404,12 +404,12 @@ node server.js<br/><br/>
 
     document.getElementById('vc-play').addEventListener('click', function(){
       if (!player) return;
-      if (player.isRunning){ player.pause(); this.textContent='▶ 播放'; }
-      else { player.play(); this.textContent='⏸ 暂停'; }
+      if (player.isRunning){ player.pause(); this.textContent='▶ 已暂停'; }
+      else { player.play(); this.textContent='⏸ 播放中'; }
     });
     document.getElementById('vc-spin').addEventListener('click', function(){
       spinning = !spinning;
-      this.textContent = spinning ? '⏸ 停止旋转' : '↻ 自动旋转';
+      this.textContent = spinning ? '↻ 自动旋转：开' : '↻ 自动旋转：关';
       if (spinning){ spinReq = requestAnimationFrame(spinLoop); }
       else if (spinReq){ cancelAnimationFrame(spinReq); spinReq=null; }
     });
