@@ -26,3 +26,24 @@ Thumbs.db
 
 # external LAMMPS clone (not part of this project)
 cases/lammps-official/
+
+# ---- source code: NOT published; repo ships sealed distribution only ----
+.env.example
+build-linux-dist.mjs
+build-sealed.mjs
+build-win-dist.mjs
+cases/
+doc_reader.py
+forcefields/
+helpers/
+img_normalize.py
+lammps.js
+monomers/
+nb_kernel_host.py
+package.json
+package-lock.json
+public/
+scripts/
+server.js
+skills.js
+skills/
