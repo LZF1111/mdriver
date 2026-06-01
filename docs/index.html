@@ -209,8 +209,8 @@
           <span class="t">NGL · dump.atom · 实时后处理</span></div>
         <div id="ngl-stage" class="ngl-stage"><div class="ngl-hint">拖动旋转 · 滚轮缩放 · 右键平移</div></div>
         <div class="viewer-ctrl">
-          <button id="vc-play" type="button">⏸ 播放中</button>
-          <button id="vc-spin" type="button">↻ 自动旋转：关</button>
+          <button id="vc-play" type="button">▶ 已暂停</button>
+          <button id="vc-spin" type="button">↻ 自动旋转：开</button>
           <select id="vc-rep" title="表示模式">
             <option value="spacefill" selected>填充球</option>
             <option value="ball+stick">球棍</option>
@@ -395,10 +395,11 @@ node server.js<br/><br/>
         if (totalFrames > 1){
           const tp = o.addTrajectory().trajectory;
           player = new NGL.TrajectoryPlayer(tp, { step:1, timeout:90, start:0, end:totalFrames-1, mode:'loop', direction:'forward' });
-          player.play();
           tp.signals.frameChanged.add((i)=>{ info.textContent = '帧 ' + (i+1) + ' / ' + totalFrames + ' · 元素配色'; });
         }
         info.textContent = totalFrames + ' 帧 · 元素配色';
+        spinning = true;
+        spinReq = requestAnimationFrame(spinLoop);
       })
       .catch((e)=>{ info.textContent = '加载失败：' + (e && e.message ? e.message : e); });
 
