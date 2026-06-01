@@ -1,0 +1,44 @@
+# ============================================================
+#  Template: FCC 二元合金 + EAM/alloy
+#  改造提示（最容易翻车的元素顺序）:
+#    * pair_style eam/alloy
+#    * pair_coeff * * <file> Elem1 Elem2 ...
+#      Elem1/Elem2/... 必须严格按 atom type 1/2/... 的顺序
+#      不在体系里的元素位写 NULL（绝不能省略空位）
+#    * 势函数文件需用户自备（bundle 未自带，例：AlCu.eam.alloy）
+#    * 建议先 lmp_find_potential pattern="alloy" 确认有哪些可用
+# ============================================================
+units           metal
+atom_style      atomic
+boundary        p p p
+
+# ---- 几何 ----（两元素 FCC，50/50 随机分布）
+variable        a equal 3.95                          # 改成你的合金晶格常数
+lattice         fcc ${a}
+region          box block 0 8 0 8 0 8
+create_box      2 box
+create_atoms    1 box
+# 随机把一半改成 type 2
+set             type 1 type/fraction 2 0.5 12345
+
+mass            1 26.9815                             # Al g/mol（type 1）
+mass            2 63.546                              # Cu g/mol（type 2）
+
+# ---- 势 ----（注意元素顺序必须和 mass 行的 type 顺序对齐！）
+pair_style      eam/alloy
+pair_coeff      * * AlCu.eam.alloy Al Cu
+
+# ---- 初始 ----
+velocity        all create 300.0 12345 mom yes dist gaussian
+
+timestep        0.001
+neighbor        2.0 bin
+neigh_modify    delay 5 every 1 check yes
+
+fix             1 all npt temp 300.0 300.0 0.1 iso 1.0 1.0 1.0
+
+thermo          100
+thermo_style    custom step temp press pe ke etotal vol density
+
+run             5000
+write_data      data.final

@@ -1,0 +1,11 @@
+#
+# packmol input — PE pyrolysis 40x40x40 box, 20 chains
+#
+tolerance 2.0
+output system.pdb
+filetype pdb
+
+structure monomer.pdb
+  number 20
+  inside box 0. 0. 0. 40. 40. 40.
+end structure

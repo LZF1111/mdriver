@@ -1,0 +1,29 @@
+{
+  "id": "限域流动",
+  "name": "限域流动",
+  "createdAt": 1780054684526,
+  "updatedAt": 1780054703188,
+  "stats": {
+    "runs": 0,
+    "healthy": 0,
+    "lintPass": 0,
+    "completed": 0,
+    "failures": 0
+  },
+  "history": [],
+  "lessons": [
+    {
+      "id": "8ebj1h6v",
+      "text": "控温器别挂在 all（含流向速度），改挂 group flow + compute temp mobile",
+      "fix": "",
+      "source": "user",
+      "rule": "",
+      "hits": 1,
+      "ts": 1780054703188
+    }
+  ],
+  "candidates": [],
+  "params": {},
+  "templates": [],
+  "lintRules": []
+}

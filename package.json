@@ -1,0 +1,22 @@
+{
+  "name": "mdriver",
+  "displayName": "MDriver",
+  "version": "0.1.0",
+  "author": "LZF",
+  "description": "MDriver — 自动化 LAMMPS 分子动力学智能体 (by LZF, derived from CFDriver/nullflux framework)",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "node build-sealed.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "javascript-obfuscator": "^5.4.2"
+  }
+}

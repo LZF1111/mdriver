@@ -1,0 +1,527 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>MDriver</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" data-name="vs/editor/editor.main"
+        href="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/editor/editor.main.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <!-- three.js ESM importmap：STLLoader / OrbitControls 内部 import 'three' / 'three/addons/...' 需要这个解析 -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/": "https://cdn.jsdelivr.net/npm/three@0.160.0/"
+    }
+  }
+  </script>
+  <!-- NGL Viewer：MD 轨迹实时交互（WebGL） -->
+  <script src="https://unpkg.com/ngl@2.3.1/dist/ngl.js"></script>
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="accent">M</span>Driver<span class="ver-tag">v0.1</span></div>
+    <div class="meta">
+      <button id="open-folder" title="打开文件夹">文件夹</button>
+      <button id="open-file" title="打开文件">打开文件</button>
+      <span id="ws-display" class="ws-display muted"></span>
+      <span id="mode-pills" class="mode-pills" title="当前启用的 Beta 模式"></span>
+      <span id="model-info" class="muted"></span>
+      <label class="toggle"><input type="checkbox" id="auto-mode" checked /> Auto</label>
+      <!-- sim-mode toggle removed: only LAMMPS pipeline is exposed in MDriver. -->
+      <button id="py-picker" class="py-btn" title="选择 Python 环境">Python: <span id="py-label">未选择</span></button>
+      <button id="model-picker" class="py-btn" title="选择 LLM 模型 / 登录 GitHub Copilot"><span id="model-label">DeepSeek</span></button>
+      <button id="tools-btn" class="py-btn" title="选择可用工具">工具</button>
+      <button id="digitize-btn" class="py-btn" title="从论文/截图里手动标注数据点，作为参考/对比数据集">标注图表</button>
+      <div class="menu-wrap">
+        <button id="view-btn" class="py-btn" title="显示/隐藏面板">视图 ▾</button>
+        <div id="view-menu" class="view-menu" style="display:none;"></div>
+      </div>
+      <button id="reset-layout" title="重置面板位置">布局</button>
+      <button id="compact-btn" title="把较早的对话压缩成摘要，释放上下文（防 OOM）">压缩历史</button>
+      <button id="settings-btn" title="设置">设置</button>
+      <button id="reset" title="清空对话">清空</button>
+    </div>
+  </header>
+
+  <!-- 浮动面板容器（所有面板均可拖拽/缩放） -->
+  <div id="desktop" class="desktop">
+
+    <!-- 文件树 -->
+    <div class="panel" data-pid="files" data-default="left:8;top:8;width:240;height:340">
+      <div class="panel-head"><span class="grip">⋮⋮</span><span class="ptitle">资源管理器</span>
+        <span class="pacts"><button class="mini" id="refresh-tree" title="刷新">刷新</button><button class="mini" id="new-file" title="新建文件">＋F</button><button class="mini" id="new-folder" title="新建目录">＋D</button></span>
+      </div>
+      <div id="tree" class="tree panel-body" style="overflow:auto;min-height:0;"></div>
+    </div>
+
+    <!-- 待办 -->
+    <div class="panel" data-pid="todos" data-default="left:8;top:352;width:240;height:184">
+      <div class="panel-head"><span class="grip">⋮⋮</span><span class="ptitle">待办</span></div>
+      <div id="todos" class="todos panel-body"><div class="muted small">尚无任务</div></div>
+    </div>
+
+    <!-- 检查点 -->
+    <div class="panel" data-pid="checkpoints" data-default="left:8;top:540;width:240;height:340">
+      <div class="panel-head"><span class="grip">⋮⋮</span><span class="ptitle">检查点</span></div>
+      <div id="checkpoints" class="checkpoints panel-body"><div class="muted small">尚无检查点</div></div>
+    </div>
+
+    <!-- 编辑器 -->
+    <div class="panel" data-pid="editor" data-default="left:256;top:8;width:760;height:440">
+      <div class="panel-head">
+        <span class="grip">⋮⋮</span>
+        <div id="tabs" class="tabs"></div>
+          <span class="pacts"><button class="mini" id="save-file" disabled title="Ctrl+S">保存</button></span>
+      </div>
+      <div id="editor" class="editor panel-body">
+        <div id="editor-host" class="editor-host"></div>
+        <div id="nb-host" class="nb-host" style="display:none;"></div>      <div id="img-host" class="img-host" style="display:none;"></div>
+        <div id="stl-host" class="stl-host" style="display:none;position:relative;width:100%;height:100%;background:#0a0612;"></div>
+        <div id="vtu-host" class="vtu-host" style="display:none;position:relative;width:100%;height:100%;background:#0a0612;"></div>
+        <div id="pdf-host" class="pdf-host" style="display:none;position:relative;width:100%;height:100%;background:#0a0612;"></div>
+        <div id="editor-empty" class="editor-empty">
+          <div class="welcome">
+            <div class="welcome-mark"><span class="welcome-logo">M</span>Driver</div>
+            <h1 class="welcome-title">选择文件，或让 MDriver 开始工作</h1>
+            <p class="welcome-sub">本地 AI 仿真工程师 · 驱动 LAMMPS / ReaxFF · 实时后处理与轨迹可视化</p>
+
+            <div class="welcome-card">
+              <div class="welcome-card-h">💡 双击文件树中以下类型可直接预览</div>
+              <ul class="welcome-list">
+                <li><code>.lammpstrj</code> <code>.pdb</code> <code>.xyz</code> <code>.gro</code><span>NGL 轨迹 / 分子查看器（球棍、填充球；可切帧）</span></li>
+                <li><code>.stl</code><span>三维网格旋转预览（three.js）</span></li>
+                <li><code>.vtu</code> <code>.vtp</code> <code>.vtk</code> <code>.pvd</code><span>标量 / 矢量场可视化（vtk.js）</span></li>
+                <li><code>.pdf</code> <code>.png</code> <code>.jpg</code> <code>.svg</code><span>浏览器原生 PDF 与图片</span></li>
+                <li><code>.ipynb</code><span>Notebook</span></li>
+                <li><code>文本 / 源码</code><span>Monaco 编辑器（高亮 · 编辑 · Ctrl-S 保存）</span></li>
+              </ul>
+              <div class="welcome-tip">提示：LAMMPS 的 <code>dump.atom</code> 若无 <code>.lammpstrj</code> 后缀，可在 NGL 面板路径框手动指定，格式下拉选 <b>lammpstrj</b>。</div>
+            </div>
+
+            <div class="welcome-quick">
+              <div class="welcome-quick-h">🚀 快速上手 · 点一下把示例任务填进对话框</div>
+              <button id="quickstart-reaxff" type="button" class="welcome-quick-btn">
+                <span class="wq-title">⚗️ 最小 ReaxFF 热解案例</span>
+                <span class="wq-desc">读入 pe_min/data.pe_min，用 ReaxFF 把聚乙烯 300 K → 3000 K 热解，统计产物并出轨迹</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NGL 轨迹实时查看（MD 模式核心后处理） -->
+    <div class="panel sim-panel" data-pid="ngl" data-default="left:256;top:8;width:760;height:440" style="display:none;">
+      <div class="panel-head">
+        <span class="grip">⋮⋮</span>
+        <span class="ptitle">🎞️ NGL 轨迹查看器</span>
+        <span class="pacts">
+          <span id="ngl-status" class="small muted">未加载</span>
+          <input id="ngl-path" type="text" placeholder="dump 路径（相对工作区）" style="width:200px;font-size:10px;padding:2px 5px;background:var(--bg2);border:1px solid var(--line2);color:var(--text);border-radius:3px;" />
+          <select id="ngl-ext" title="文件格式" style="background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:3px;padding:2px 4px;font-size:11px;">
+            <option value="">自动</option>
+            <option value="pdb">pdb</option>
+            <option value="xyz">xyz</option>
+            <option value="gro">gro</option>
+            <option value="lammpstrj">lammpstrj</option>
+            <option value="cif">cif</option>
+            <option value="mol2">mol2</option>
+          </select>
+          <button class="mini" id="ngl-load" title="加载并渲染">载入</button>
+          <select id="ngl-rep" title="表示模式" style="background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:3px;padding:2px 4px;font-size:11px;">
+            <option value="ball+stick">球棍</option>
+            <option value="spacefill">填充球</option>
+            <option value="licorice">线条</option>
+            <option value="point">点云</option>
+            <option value="surface">表面</option>
+          </select>
+          <button class="mini" id="ngl-reset" title="复位视角">⊙</button>
+          <button class="mini" id="ngl-close">×</button>
+        </span>
+      </div>
+      <div class="sim-subbar" id="ngl-subbar" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:4px 8px;background:#0a0612;border-bottom:1px solid var(--line2);font-size:11px;">
+        <span class="muted">帧:</span>
+        <button class="mini" id="ngl-frame-prev" title="上一帧">◀</button>
+        <input id="ngl-frame" type="range" min="0" max="0" value="0" style="flex:1;min-width:120px;max-width:220px;" />
+        <button class="mini" id="ngl-frame-next" title="下一帧">▶</button>
+        <button class="mini" id="ngl-play" title="播放/暂停">▶▶</button>
+        <select id="ngl-speed" title="播放速度" style="background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:3px;padding:1px 3px;font-size:10px;">
+          <option value="320">0.25x</option>
+          <option value="160">0.5x</option>
+          <option value="80" selected>1x</option>
+          <option value="40">2x</option>
+          <option value="20">4x</option>
+        </select>
+        <span id="ngl-frame-label" class="small muted" style="min-width:78px;">— / —</span>
+        <span style="width:1px;height:14px;background:var(--line2);margin:0 2px;"></span>
+        <span class="muted" title="原子/键半径缩放">大小</span>
+        <input id="ngl-size" type="range" min="0.1" max="3" step="0.05" value="1" style="width:64px;" title="原子/键半径缩放" />
+        <span class="muted">配色</span>
+        <select id="ngl-color" title="配色方案" style="background:var(--bg2);color:var(--text);border:1px solid var(--line2);border-radius:3px;padding:1px 3px;font-size:10px;">
+          <option value="element" selected>元素</option>
+          <option value="atomindex">原子序(彩虹)</option>
+          <option value="uniform">统一色</option>
+        </select>
+        <input id="ngl-color-val" type="color" value="#4aa3ff" title="统一色取色" style="width:22px;height:18px;padding:0;border:1px solid var(--line2);border-radius:3px;background:var(--bg2);display:none;" />
+        <button class="mini" id="ngl-spin" title="自动旋转 开/关">🔄</button>
+        <button class="mini" id="ngl-bg" title="背景明暗切换">🌓</button>
+        <button class="mini" id="ngl-shot" title="保存当前画面为 PNG">📷</button>
+      </div>
+      <div class="sim-viewport panel-body" id="ngl-viewport" style="background:#0a0612;position:relative;">
+        <div id="ngl-host" style="width:100%;height:100%;"></div>
+        <div class="sim-empty" id="ngl-empty"><b>NGL 轨迹查看器</b><br/>输入 dump 文件路径（如 <code>case/dump.atom</code>），点击 <b>载入</b><br/><span class="small muted">支持 lammpstrj / pdb / xyz；WebGL 实时旋转 · 缩放 · 切帧</span></div>
+      </div>
+    </div>
+
+    <!-- V4: Agent 学者观察员（博士小人 2D 动画） -->
+    <div class="panel" data-pid="scholar" data-default="left:1100;top:60;width:300;height:380">
+      <div class="panel-head"><span class="grip">⋮⋮</span><span class="ptitle">🎓 Agent 观察员</span></div>
+      <div id="scholar-body" class="panel-body" style="padding:0;"></div>
+    </div>
+
+    <!-- 图片库（agent 找到的图片自动汇集） -->
+    <div class="panel" data-pid="gallery" data-default="left:1024;top:612;width:380;height:268" style="display:none;">
+      <div class="panel-head">
+        <span class="grip">⋮⋮</span>
+          <span class="ptitle">图片库 <span id="gal-count" class="small muted">0</span></span>
+        <span class="pacts">
+          <input id="gal-prompt" type="text" placeholder="搜图: droplet impact contact angle" style="width:220px;font-size:10px;padding:2px 5px;background:var(--bg2);border:1px solid var(--line2);color:var(--text);border-radius:3px;" />
+          <button class="mini" id="gal-search">搜索</button>
+          <button class="mini" id="gal-clear">清空</button>
+        </span>
+      </div>
+      <div class="panel-body" id="gallery-body" style="overflow-y:auto;padding:6px;">
+        <div class="muted small" id="gallery-empty" style="text-align:center;padding:20px;">让 agent 调用 image_search / fetch_url，找到的图片会自动汇集到这里。也可在上方输入关键词直接搜图。双击大图查看原图，🔽 下载到 downloads/。</div>
+        <div id="gallery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;"></div>
+      </div>
+    </div>
+
+    <!-- 大图 lightbox -->
+    <div id="img-lightbox" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;flex-direction:column;">
+      <img id="img-lightbox-img" style="max-width:90vw;max-height:80vh;object-fit:contain;border:1px solid #555;" />
+      <div id="img-lightbox-bar" style="margin-top:14px;display:flex;gap:10px;align-items:center;color:#ddd;font-size:12px;">
+        <a id="img-lightbox-open" target="_blank" style="color:#f0abfc;">在新标签打开</a>
+        <button class="mini" id="img-lightbox-dl">下载到 downloads/</button>
+        <button class="mini" id="img-lightbox-close">关闭</button>
+      </div>
+      <div id="img-lightbox-meta" class="small muted" style="margin-top:6px;max-width:90vw;text-align:center;word-break:break-all;"></div>
+    </div>
+
+
+    <!-- 自定义工作流 (Beta) 面板 -->
+    <div class="panel" data-pid="custom" data-default="left:256;top:1090;width:760;height:200">
+      <div class="panel-head">
+        <span class="grip">⋮⋮</span>
+        <span class="ptitle">自定义工作流 <span class="small muted">Beta</span> <span id="custom-state" class="small muted">未启用</span></span>
+        <span class="pacts">
+          <button class="mini" id="custom-test" title="问 agent 当前工作流是什么（验证 prompt 是否生效）">🧪 测试</button>
+          <button class="mini" id="custom-toggle" title="启用/关闭 自定义工作流">启用</button>
+          <button class="mini" id="custom-config" title="编辑 prompt 流水">⚙</button>
+        </span>
+      </div>
+      <div class="panel-body" style="padding:6px;display:flex;flex-direction:column;gap:6px;overflow:auto;">
+        <div class="small muted" style="word-break:break-all;">
+          名称：<span id="custom-name-text">(未命名)</span> · 根目录：<span id="custom-root-text">(可选/未设置)</span>
+        </div>
+        <div class="small muted" style="line-height:1.45;">
+          ↳ 启用后，你写的 prompt 流水会拼到 system message。智能体仍能用 <code>run_command / read_file / edit_file / grep_search / list_dir / fetch_url / web_search / paper_search</code> 等通用工具。不要求你写"工具列表"——只写"步骤约束"即可。
+        </div>
+        <div id="custom-preview" class="small" style="flex:1;overflow:auto;background:#0a0612;border:1px solid var(--line2);border-radius:4px;padding:6px;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;font-size:10.5px;color:#a78bfa;min-height:60px;">
+          (尚未配置 prompt 流水。点 ⚙ 写一段，或塞参考示例。)
+        </div>
+      </div>
+    </div>
+
+    <!-- custom 配置弹窗 -->
+    <div id="custom-cfg-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+      <div style="background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:14px 16px;width:780px;max-width:94vw;max-height:88vh;display:flex;flex-direction:column;">
+        <div style="font-size:13px;margin-bottom:6px;">自定义工作流 (Beta) — 流水式 prompt</div>
+        <div class="small muted" style="margin-bottom:8px;line-height:1.5;">
+          这里写的内容会原样拼到 system prompt 末尾。建议用"步骤化"语气，比如<b>第 1 步… 第 2 步…</b>。智能体已经具备通用工具，你只要规定<b>流程 / 校验点 / 输出约束</b>即可。
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;">
+          <label class="small muted" style="flex:0 0 80px;line-height:24px;">名称</label>
+          <input id="custom-cfg-name" type="text" placeholder="如 Matplotlib 学术绘图工作流" style="flex:1;font-size:11px;padding:5px 7px;background:var(--bg2);border:1px solid var(--line2);color:var(--text);border-radius:3px;" />
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px;">
+          <label class="small muted" style="flex:0 0 80px;line-height:24px;">根目录（可选）</label>
+          <input id="custom-cfg-root" type="text" placeholder="如 /home/me/figures 或留空" style="flex:1;font-size:11px;padding:5px 7px;background:var(--bg2);border:1px solid var(--line2);color:var(--text);border-radius:3px;" />
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+          <label class="small muted" style="flex:1;">Prompt 流水（≤ 20000 字符）</label>
+          <select id="custom-cfg-template" class="mini" title="选择参考模板" style="font-size:11px;padding:3px 6px;background:var(--bg2);border:1px solid var(--line2);color:var(--text);border-radius:3px;">
+            <option value="">📚 选择模板…</option>
+            <option value="plot">学术绘图 (Matplotlib)</option>
+            <option value="paper">论文 Review 工作流</option>
+            <option value="code">代码 Review 工作流</option>
+            <option value="data">数据清洗与分析</option>
+            <option value="research">通用研究助手</option>
+          </select>
+          <button class="mini" id="custom-cfg-example" title="塞入选中模板">📋 应用</button>
+          <button class="mini" id="custom-cfg-clear">清空</button>
+        </div>
+        <textarea id="custom-cfg-prompt" placeholder="可参考下方示例。建议按 第1步/第2步/校验/输出 来写。" style="flex:1;min-height:280px;font-size:11.5px;padding:8px;background:var(--bg2);border:1px solid var(--line2);color:var(--text);border-radius:3px;font-family:ui-monospace,Consolas,monospace;line-height:1.5;resize:vertical;"></textarea>
+        <div id="custom-cfg-status" class="small muted" style="min-height:18px;margin-top:6px;"></div>
+        <div style="text-align:right;margin-top:6px;display:flex;gap:6px;justify-content:flex-end;">
+          <button class="mini" id="custom-cfg-cancel">取消</button>
+          <button class="mini" id="custom-cfg-save">仅保存</button>
+          <button class="mini" id="custom-cfg-save-enable" style="background:rgba(139,92,246,.18);border-color:#7c3aed;color:#c4b5fd;">保存并启用</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 终端（交互式） -->
+    <div class="panel" data-pid="terminal" data-default="left:256;top:452;width:760;height:200">
+      <div class="panel-head">
+        <span class="grip">⋮⋮</span>
+        <span class="ptitle">终端 <span id="shell-name" class="small muted"></span></span>
+        <span class="pacts"><button class="mini" id="clear-term">清空</button><button class="mini" id="kill-shell" title="重启 shell">↻</button></span>
+      </div>
+      <div class="term-wrap panel-body">
+        <div id="terminal" class="terminal"></div>
+        <div class="term-input-row">
+          <span id="term-prompt">$</span>
+          <input type="text" id="term-input" placeholder="输入命令并回车（cmd / bash）" autocomplete="off" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 对话 -->
+    <div class="panel" data-pid="chat" data-default="left:1024;top:8;width:380;height:596">
+      <div class="panel-head"><span class="grip">⋮⋮</span><span class="ptitle">对话</span></div>
+      <div class="chat-body panel-body">
+        <div class="pending-bar" id="pending-bar" style="display:none;">
+          <div class="pending-head"><span>⚠ <b id="pending-count">0</b> 条待审</span>
+            <span><button class="mini ok" id="keep-all">全部 Keep</button><button class="mini no" id="undo-all">全部 Undo</button></span>
+          </div>
+          <div id="pending-list"></div>
+        </div>
+        <div id="chat" class="chat"></div>
+        <div class="input-wrap">
+          <div id="active-file-chip" class="active-file-chip" style="display:none;">
+            <label><input type="checkbox" id="active-file-toggle" /> 把当前文件作为输入：<span id="active-file-name"></span></label>
+          </div>
+          <div id="attachments" class="attachments"></div>
+          <div class="input-row">
+            <textarea id="input" placeholder="向 MDriver 发出指令… @文件 引用，Ctrl+Enter 发送"></textarea>
+            <div id="mention-pop" class="mention-pop" style="display:none;"></div>
+          </div>
+          <div class="input-toolbar">
+          <button class="mini" id="attach-file" title="附件">附件</button>
+          <button class="mini" id="attach-image" title="图片">图片</button>
+            <input type="file" id="file-picker" multiple style="display:none;" />
+            <input type="file" id="image-picker" accept="image/*" multiple style="display:none;" />
+            <span class="grow"></span>
+            <button id="stop" class="danger" disabled title="停止 Agent（不杀后台求解器）">⏹</button>
+            <button id="kill-all" class="danger" title="强行终止：杀光 Agent + 后台 lmp_run_async + Python/Packmol + shell">⚡强终</button>
+            <button id="send" class="primary">发送 ⏎</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Python 环境选择 -->
+  <div id="py-modal" class="modal" style="display:none;">
+    <div class="modal-box small">
+          <div class="modal-head"><span>选择 Python 解释器</span><button class="mini" id="py-close">×</button></div>
+      <div class="py-body">
+        <div class="py-toolbar">
+            <button class="mini" id="py-refresh">重新扫描</button>
+            <button class="mini" id="py-browse">手动选择 python…</button>
+          <button class="mini no" id="py-clear">清除</button>
+        </div>
+        <div id="py-list" class="py-list"><div class="muted small" style="padding:20px;text-align:center;">扫描中…</div></div>
+      </div>
+      <div class="modal-actions"><button class="no" id="py-cancel">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- 模型选择 / GitHub Copilot 登录 -->
+  <div id="model-modal" class="modal" style="display:none;">
+    <div class="modal-box">
+          <div class="modal-head"><span>选择 LLM 模型</span><button class="mini" id="model-close">×</button></div>
+      <div class="py-body">
+        <div class="model-tabs">
+          <button class="mtab active" data-prov="sf">SiliconFlow / 自定义</button>
+          <button class="mtab" data-prov="aliyun">阿里云 / 通义千问</button>
+          <button class="mtab" data-prov="copilot">GitHub Copilot</button>
+        </div>
+
+        <div class="mpane" data-prov="sf" style="display:block;">
+          <div class="muted small" style="margin-bottom:6px;">OpenAI 兼容端点（SiliconFlow / DeepSeek / OpenAI / 任意代理商）</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label class="small">API Key
+              <input id="sf-apikey" type="password" class="py-input" placeholder="sk-..." style="width:100%;" />
+            </label>
+            <label class="small">Base URL
+              <input id="sf-baseurl" type="text" class="py-input" placeholder="https://api.deepseek.com" style="width:100%;" />
+            </label>
+            <label class="small">模型
+              <input id="sf-model" type="text" class="py-input" list="sf-model-list" placeholder="deepseek-chat" style="width:100%;" />
+              <datalist id="sf-model-list">
+                <option value="deepseek-chat"></option>
+                <option value="deepseek-coder"></option>
+                <option value="deepseek-ai/DeepSeek-V3"></option>
+                <option value="deepseek-ai/DeepSeek-V4-Flash"></option>
+                <option value="Qwen/Qwen2.5-Coder-32B-Instruct"></option>
+                <option value="Qwen/Qwen2-VL-72B-Instruct"></option>
+              </datalist>
+            </label>
+            <button class="mini ok" id="sf-apply" style="align-self:flex-end;">使用此配置</button>
+          </div>
+        </div>
+
+        <div class="mpane" data-prov="aliyun" style="display:none;">
+          <div class="muted small" style="margin-bottom:6px;">阿里云百炼 (DashScope) · OpenAI 兼容协议 · <a href="https://bailian.console.aliyun.com/?apiKey=1#/api-key" target="_blank" style="color:#f0abfc">获取 API Key →</a></div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label class="small">API Key (sk-...)
+              <input id="aliyun-key" type="password" class="py-input" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="width:100%;" />
+            </label>
+            <label class="small">模型（可下拉选预设，也可直接输入任意百炼模型 ID）
+              <input id="aliyun-model" class="py-input" list="aliyun-model-list" placeholder="qwen-plus" style="width:100%;" value="qwen-plus" />
+              <datalist id="aliyun-model-list">
+                <option value="qwen-plus">通义千问 · 性价比之选</option>
+                <option value="qwen-max">通义千问 · 旗舰</option>
+                <option value="qwen-turbo">通义千问 · 最便宜最快</option>
+                <option value="qwen-long">通义千问 · 长文档 10M</option>
+                <option value="qwen3-max">Qwen3-Max</option>
+                <option value="qwen3-coder-plus">Qwen3 Coder Plus（代码）</option>
+                <option value="qwen3-coder-flash">Qwen3 Coder Flash</option>
+                <option value="qwen-vl-max">Qwen-VL-Max（视觉）</option>
+                <option value="qwen-vl-plus">Qwen-VL-Plus（视觉）</option>
+                <option value="qwen3-vl-plus">Qwen3-VL-Plus（视觉）</option>
+                <option value="deepseek-v3">DeepSeek-V3（阿里直供）</option>
+                <option value="deepseek-r1">DeepSeek-R1（推理）</option>
+                <option value="kimi-k2-turbo-preview">Kimi K2 Turbo Preview</option>
+                <option value="qwen-math-plus">Qwen-Math-Plus</option>
+                <option value="qwen-omni-turbo">Qwen-Omni-Turbo</option>
+              </datalist>
+            </label>
+            <div class="muted small" style="margin-top:-2px;">完整模型清单：<a href="https://help.aliyun.com/zh/model-studio/getting-started/models" target="_blank" style="color:#f0abfc">百炼模型广场 →</a></div>
+            <label class="small"><input type="checkbox" id="aliyun-also-vlm" checked /> 同时把视觉模型 (VLM) 切换为 qwen-vl-max（agent 读图更准）</label>
+            <button class="mini ok" id="aliyun-apply" style="align-self:flex-end;">应用并切换</button>
+          </div>
+        </div>
+
+        <div class="mpane" data-prov="copilot" style="display:none;">
+          <div id="cp-loggedout" class="cp-section" style="display:none;">
+            <div class="muted small" style="margin-bottom:8px;">需要付费的 GitHub Copilot 订阅。点下面按钮启动设备授权流程，用浏览器打开 GitHub 登录页并粘贴一次性 user code 即可。</div>
+                <button class="mini ok" id="cp-login">使用 GitHub 账号登录 Copilot</button>
+            <div id="cp-device" style="display:none;margin-top:10px;padding:10px;background:#0a0612;border:1px solid #7c3aed;border-radius:5px;">
+              <div class="small">1. 打开：<a id="cp-uri" href="#" target="_blank" style="color:#f0abfc"></a></div>
+              <div class="small" style="margin-top:6px;">2. 输入设备码：<code id="cp-code" style="background:#1a0f2e;padding:2px 8px;border-radius:3px;color:#fff;letter-spacing:2px;font-size:14px;"></code> <button class="mini" id="cp-copy">复制</button></div>
+              <div id="cp-poll-status" class="muted small" style="margin-top:8px;">等待你在浏览器完成授权…</div>
+              <div style="margin-top:8px;display:flex;gap:6px;">
+                <button class="mini ok" id="cp-recheck">我已授权，立即检查</button>
+                <button class="mini no" id="cp-cancel">取消</button>
+              </div>
+            </div>
+          </div>
+          <div id="cp-loggedin" class="cp-section" style="display:none;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <span class="small">✅ 已登录</span>
+                <button class="mini" id="cp-refresh">刷新模型</button>
+              <button class="mini no" id="cp-logout">退出登录</button>
+            </div>
+            <div class="muted small" style="margin-bottom:6px;">选择一个模型作为 agent 的大脑：</div>
+            <div id="cp-models" class="py-list" style="max-height:340px;overflow-y:auto;"></div>
+          </div>
+        </div>
+      </div>
+      <!-- VLM 视觉模型（独立于 provider tab）-->
+      <details style="margin:10px 14px 0;padding:8px 10px;background:rgba(168,85,247,.05);border:1px solid #4c1d95;border-radius:5px;">
+        <summary style="cursor:pointer;color:#c4b5fd;font-size:13px;">👁 视觉模型 VLM（vision_analyze 读图専用）</summary>
+        <div class="muted small" style="margin:8px 0 6px;">主模型不是 VLM 时，<code>vision_analyze</code> 会路由到这里读图。</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="small">VLM Base URL
+            <input id="vlm-baseurl" type="text" class="py-input" placeholder="https://api.siliconflow.cn" style="width:100%;" />
+          </label>
+          <label class="small">VLM 模型
+            <input id="vlm-model" type="text" class="py-input" list="vlm-model-list" placeholder="Pro/moonshotai/Kimi-K2.6" style="width:100%;" />
+            <datalist id="vlm-model-list">
+              <option value="Pro/moonshotai/Kimi-K2.6"></option>
+              <option value="Qwen/Qwen2.5-VL-72B-Instruct"></option>
+              <option value="qwen-vl-max"></option>
+              <option value="qwen-vl-plus"></option>
+              <option value="qwen3-vl-plus"></option>
+              <option value="deepseek-ai/deepseek-vl2"></option>
+            </datalist>
+          </label>
+          <label class="small">VLM API Key（留空 = 复用主 API Key）
+            <input id="vlm-apikey" type="password" class="py-input" placeholder="sk-..." style="width:100%;" />
+          </label>
+          <button class="mini ok" id="vlm-apply" style="align-self:flex-end;">保存 VLM 配置</button>
+        </div>
+      </details>
+      <div class="modal-actions"><button class="no" id="model-cancel">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- 工具开关 -->
+  <div id="tools-modal" class="modal" style="display:none;">
+    <div class="modal-box small">
+          <div class="modal-head"><span>选择智能体可用工具</span><button class="mini" id="tools-close">×</button></div>
+      <div class="py-body">
+        <div class="muted small" style="margin-bottom:10px;">勾选后立刻生效，发给模型的工具列表会随之变化。<b>编辑/读写类</b>始终开启。</div>
+        <div id="tools-list"></div>
+      </div>
+      <div class="modal-actions"><button class="no" id="tools-cancel">关闭</button></div>
+    </div>
+  </div>
+
+  <!-- Diff 弹窗 -->
+  <div id="diff-modal" class="modal" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-head"><span id="diff-title">差异预览</span><button class="mini" id="diff-close">×</button></div>
+      <div id="diff-editor" class="diff-editor"></div>
+      <div class="modal-actions"><button class="ok" id="diff-keep">✓ Keep</button><button class="no" id="diff-undo">↶ Undo</button></div>
+    </div>
+  </div>
+
+  <!-- 文件夹选择 -->
+  <div id="picker-modal" class="modal" style="display:none;">
+    <div class="modal-box small">
+      <div class="modal-head"><span id="picker-title">选择文件夹</span><button class="mini" id="picker-close">×</button></div>
+      <div class="picker-path">
+        <button class="mini" id="picker-up">⬆</button>
+        <input type="text" id="picker-cwd" />
+        <button class="mini" id="picker-go">→</button>
+      </div>
+      <div id="picker-list" class="picker-list"></div>
+      <div class="modal-actions">
+        <button class="ok" id="picker-pick">✓ 选择此处</button>
+        <button class="no" id="picker-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置 -->
+  <div id="settings-modal" class="modal" style="display:none;">
+    <div class="modal-box small">
+      <div class="modal-head"><span>⚙ 设置</span><button class="mini" id="settings-close">×</button></div>
+      <div class="settings-body">
+        <div class="setting-section">
+          <div class="setting-section-title">LAMMPS 运行环境</div>
+          <label>LAMMPS 可执行（lmp / lmp_serial / lmp_mpi）<input type="text" id="set-lammps-bin" placeholder="C:\Program Files\LAMMPS\bin\lmp.exe" /></label>
+          <label>LAMMPS 根目录（可选；用于 examples / potentials）<input type="text" id="set-lammps-root" placeholder="C:\Program Files\LAMMPS" /></label>
+          <label>Packmol 可执行（可选；建议加入 PATH）<input type="text" id="set-packmol" placeholder="packmol" /></label>
+          <label>OpenBabel obabel（可选；pdb↔xyz 转换）<input type="text" id="set-obabel" placeholder="obabel" /></label>
+        </div>
+      </div>
+      <div class="modal-actions">
+          <button class="ok" id="settings-save">保存</button>
+        <button class="no" id="settings-cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script src="/digitizer.js"></script>
+  <script src="/scholar.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

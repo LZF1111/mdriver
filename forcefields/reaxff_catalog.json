@@ -1,0 +1,50 @@
+[
+  {
+    "name": "CHO-2008",
+    "file": "ffield.reax.CHO",
+    "author": "Chenoweth et al.",
+    "year": 2008,
+    "elements": ["C", "H", "O"],
+    "description": "经典 CHO ReaxFF（碳氢氧；适合烃类燃烧、热解）"
+  },
+  {
+    "name": "CHON-2010",
+    "file": "ffield.reax.CHON",
+    "author": "Liu et al.",
+    "year": 2010,
+    "elements": ["C", "H", "O", "N"],
+    "description": "CHON 体系（含氮聚合物 / 含能材料）"
+  },
+  {
+    "name": "CHONS-2014",
+    "file": "ffield.reax.CHONS",
+    "author": "Kamat et al.",
+    "year": 2014,
+    "elements": ["C", "H", "O", "N", "S"],
+    "description": "CHONS（含硫聚合物、橡胶、煤热解）"
+  },
+  {
+    "name": "AuCHO-2011",
+    "file": "ffield.reax.AuCHO",
+    "author": "Janicki et al.",
+    "year": 2011,
+    "elements": ["Au", "C", "H", "O"],
+    "description": "金催化界面 CHO 体系"
+  },
+  {
+    "name": "FeOCHN-2016",
+    "file": "ffield.reax.FeOCHN",
+    "author": "Aryanpour et al.",
+    "year": 2016,
+    "elements": ["Fe", "O", "C", "H", "N"],
+    "description": "铁氧化物 + 有机物（腐蚀 / 催化）"
+  },
+  {
+    "name": "SiOH-2003",
+    "file": "ffield.reax.SiOH",
+    "author": "van Duin et al.",
+    "year": 2003,
+    "elements": ["Si", "O", "H"],
+    "description": "硅氧水（玻璃 / 沸石 / 水合作用）"
+  }
+]

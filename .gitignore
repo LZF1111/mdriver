@@ -1,0 +1,28 @@
+# dependencies
+node_modules
+
+# secrets & local runtime config (contain real API keys / tokens)
+.env
+.env.local
+settings.json
+copilot.json
+
+# build output / caches
+dist/
+.cache/
+
+# logs
+*.log
+
+# backups & local temp
+*.bak
+_demo.webm
+_mdriver_*_b64.txt
+_traj_pdb.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# external LAMMPS clone (not part of this project)
+cases/lammps-official/

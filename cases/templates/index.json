@@ -1,0 +1,68 @@
+[
+  {
+    "id": "fcc_metal_eam_npt",
+    "name": "FCC 金属 + EAM + NPT 熔点扫描",
+    "tags": ["fcc", "metal", "eam", "npt", "cu", "ag", "au", "ni", "al", "melting", "anneal"],
+    "units": "metal",
+    "atom_style": "atomic",
+    "potential": "Cu_u3.eam",
+    "potential_bundled": true,
+    "desc": "纯 FCC 金属，EAM 势，NPT (T=300K, P=1bar)。lattice 内建，无需 data 文件。换金属只改 lattice a、势函数文件、元素符号。Cu_u3.eam 在 bundle 自带。",
+    "file": "fcc_metal_eam_npt.in"
+  },
+  {
+    "id": "lj_argon_nve",
+    "name": "LJ Argon NVE/NVT 教学范例",
+    "tags": ["lj", "argon", "nve", "nvt", "tutorial", "lennard-jones", "教学"],
+    "units": "lj",
+    "atom_style": "atomic",
+    "potential": null,
+    "potential_bundled": false,
+    "desc": "纯 LJ 流体（reduced units），最干净的教学起点。无需势函数文件。N=4000，密度 0.8442, T*=1.0。",
+    "file": "lj_argon_nve.in"
+  },
+  {
+    "id": "si_tersoff_anneal",
+    "name": "Si Diamond + Tersoff 退火",
+    "tags": ["si", "silicon", "diamond", "tersoff", "semiconductor", "covalent", "anneal", "nvt"],
+    "units": "metal",
+    "atom_style": "atomic",
+    "potential": "Si.tersoff",
+    "potential_bundled": true,
+    "desc": "金刚石结构 Si，Tersoff 三体势。lattice 内建。注意 Tersoff 的 pair_coeff 必须 `* * file Si`，元素名要和势函数文件里一致。",
+    "file": "si_tersoff_anneal.in"
+  },
+  {
+    "id": "graphene_airebo",
+    "name": "Graphene 单层 + AIREBO",
+    "tags": ["graphene", "carbon", "airebo", "rebo", "2d", "石墨烯"],
+    "units": "metal",
+    "atom_style": "atomic",
+    "potential": "CH.airebo",
+    "potential_bundled": true,
+    "desc": "单层石墨烯，AIREBO 势。lattice custom 蜂窝。注意 z 方向 vacuum，boundary p p f。AIREBO cutoff 大，box 要够。",
+    "file": "graphene_airebo.in"
+  },
+  {
+    "id": "eam_alloy_two_metal",
+    "name": "FCC 二元合金 + EAM/alloy",
+    "tags": ["alloy", "eam", "binary", "ni", "al", "cu", "ag", "二元合金"],
+    "units": "metal",
+    "atom_style": "atomic",
+    "potential": "AlCu.eam.alloy",
+    "potential_bundled": false,
+    "desc": "二元合金示例。pair_style eam/alloy + pair_coeff * * file Elem1 Elem2 元素列要严格按 atom type 顺序对齐。势函数文件需用户自备（bundle 未自带）。",
+    "file": "eam_alloy_two_metal.in"
+  },
+  {
+    "id": "confined_flow_poiseuille",
+    "name": "纳米通道限域流动 (2D Poiseuille)",
+    "tags": ["flow", "poiseuille", "couette", "nanochannel", "nanotube", "confined", "限域", "纳米通道", "纳米管", "通道流", "lj", "slit", "wall", "壁面"],
+    "units": "lj",
+    "atom_style": "atomic",
+    "potential": null,
+    "potential_bundled": false,
+    "desc": "纳米通道内限域流动黄金模板（改编自官方 examples/flow，可直接跑）。关键正确点：控温只作用在流体组 flow + 用 compute temp mobile 排除壁面与流向流速(fix_modify/thermo_modify temp mobile)；壁面 setforce 冻结；fix addforce 体力驱动；2D 必 enforce2d。换 Couette 把 addforce 换成 velocity upper set。改 box/壁厚/驱动力/温度即可。无需 data 文件和外部势。",
+    "file": "confined_flow_poiseuille.in"
+  }
+]
